@@ -1,0 +1,101 @@
+---
+
+# TODO PR, release; include ssh.cfg and inventory not being committed or being encrypted
+# TODO Fix the SSL issues
+
+
+- name: Create a folder for OpenLMIS
+  file:
+    path: "/opt/openlmis"
+    state: directory
+    recurse: yes
+    owner: "{{deploy_user}}"
+    group: "{{deploy_group}}"
+    mode: 0775
+  become: yes
+  tags: ["scm"]
+
+- name: Download and extract OpenLMIS
+  ansible.builtin.unarchive:
+    src: https://github.com/savannahghi/openlmis-ref-distro/archive/refs/tags/v{{openlmis_version}}.tar.gz
+    dest: /opt/openlmis
+    group: "{{deploy_group}}"
+    owner: "{{deploy_user}}"
+    mode: 0775
+    remote_src: yes
+  become: yes
+  become_user: "{{deploy_user}}"
+  tags: ["scm"]
+
+- name: set up OpenLMIS settings.env
+  template: 
+    src: settings.env.j2
+    dest: "/opt/openlmis/openlmis-ref-distro-{{openlmis_version}}/settings.env"
+    backup: "yes"
+    force: "yes"
+    group: "{{deploy_group}}"
+    owner: "{{deploy_user}}"
+  become: yes
+  become_user: "{{deploy_user}}"
+  tags: ["scm"]
+
+- name: set up OpenLMIS reporting .env
+  template: 
+    src: reporting.env.j2
+    dest: "/opt/openlmis/openlmis-ref-distro-{{openlmis_version}}/reporting/.env"
+    backup: "yes"
+    force: "yes"
+    group: "{{deploy_group}}"
+    owner: "{{deploy_user}}"
+  become: yes
+  become_user: "{{deploy_user}}"
+  tags: ["scm"]
+
+- name: set up OpenLMIS .env
+  template: 
+    src: .env.j2
+    dest: "/opt/openlmis/openlmis-ref-distro-{{openlmis_version}}/.env"
+    backup: "yes"
+    force: "yes"
+    group: "{{deploy_group}}"
+    owner: "{{deploy_user}}"
+  become: yes
+  become_user: "{{deploy_user}}"
+  tags: ["scm"]
+
+- name: set up a debug variable to hold docker compose output
+  ansible.builtin.debug:
+    var: output
+  become: yes
+  become_user: "{{deploy_user}}"
+  tags: ["scm"]
+
+- name: Install docker python library
+  pip:
+    name: docker
+  become: yes
+  tags: ["scm"]
+
+- name: Install docker-compose python library
+  pip:
+    name: docker-compose
+  become: yes
+  tags: ["scm"]
+
+- name: Run `docker-compose up` to start OpenLMIS
+  community.docker.docker_compose:
+    project_src: "/opt/openlmis/openlmis-ref-distro-{{openlmis_version}}"
+    state: present
+    build: yes
+    pull: yes
+    nocache: yes
+    debug: yes
+    dependencies: yes
+    recreate: always
+    restarted: yes
+  become: yes
+  become_user: "{{deploy_user}}"
+  register: output
+  tags: ["scm", "compose"]
+
+# TODO Start compose on reboot

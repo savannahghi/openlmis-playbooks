@@ -1,0 +1,28 @@
+---
+- hosts: all
+  vars:
+    ansible_ssh_private_key_file: "~/.ssh/google_compute_engine"
+    lock_file_path: /tmp/ansible-playbook-install.lock
+    force_ignore_lock: "{{force_ignore_lock}}"
+  name: Deploy the server
+  pre_tasks:
+    - name: create deploy user
+      user: name="{{deploy_user}}" groups=www-data,sudo state=present
+      become: yes
+
+  post_tasks:
+    - name: deploy successful, remove lock_file
+      file: path={{lock_file_path}} state=absent
+      become: yes
+
+  roles:
+    - common
+    - sudoers
+    - telegraf
+    - ufw
+    - caddyserver
+    - docker
+    - {
+      role: openlmis,
+      tags: ["openlmis"]
+     }

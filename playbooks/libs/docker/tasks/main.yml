@@ -1,0 +1,78 @@
+---
+
+- name: ensure old versions are not installed
+  apt: name={{ item }} state=absent
+  become: yes
+  with_items:
+    - docker
+    - docker-engine
+    - docker.io
+    - containerd
+    - run
+  tags: ["docker"]
+
+- name: Make sure we trust the docker apt-repo
+  ansible.builtin.shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/docker-archive-keyring.gpg
+  become: yes
+  tags: ["docker"]
+
+- name: Set up the docker APT repository
+  ansible.builtin.shell: echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  args:
+    creates: /etc/apt/sources.list.d/docker.list
+  become: yes
+  tags: ["docker"]
+
+- name: Update packages so that we can install docker
+  apt: update_cache=yes
+  become: yes
+  tags: ["docker"]
+
+- name: Install Docker
+  apt: name={{ item }} state=latest
+  become: yes
+  with_items:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+  tags: ["docker"]
+
+- name: Add docker group
+  group: name=docker state=present
+  become: yes
+  tags: ["docker"]
+
+- name: Add the ansible, deploy and root users to the docker group
+  user: name={{item}} groups=docker append=yes
+  become: yes
+  with_items:
+      - root
+      - "{{deploy_user}}"
+      - '{{ lookup("env","USER")}}'
+  tags: ["docker"]
+
+- name: download docker-compose
+  ansible.builtin.shell: sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  args:
+    creates: /usr/local/bin/docker-compose
+  become: yes
+  tags: ["docker"]
+
+- name: make docker-compose executable
+  ansible.builtin.shell: sudo chmod +x /usr/local/bin/docker-compose
+  become: yes
+  tags: ["docker"]
+
+- name: symlink docker-compose to /usr/bin
+  ansible.builtin.shell: sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+  args:
+    creates: /usr/bin/docker-compose
+  become: yes
+  tags: ["docker"]
+
+- name: confirm that docker-compose works
+  ansible.builtin.shell: docker-compose --version
+  become: yes
+  tags: ["docker"]

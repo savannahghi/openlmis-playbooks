@@ -1,0 +1,21 @@
+---
+
+- name: Fetch telegraf deb package
+  get_url: url={{telegraf_deb_url}} dest={{telegraf_deb_location}} checksum={{telegraf_checksum}} owner={{deploy_user}} group={{deploy_group}} mode=u=rwx,g=rwx,o=rx
+  become: yes
+  tags: ["telegraf"]
+
+- name: Install telegraf
+  apt: deb={{telegraf_deb_location}}
+  become: yes
+  tags: ["telegraf"]
+
+- name: Configure telegraf
+  template: src="telegraf.conf" dest={{telegraf_conf_dest}}
+  become: yes
+  tags: ["telegraf", "telegraf_config"]
+
+- name: Restart telegraf
+  service: name=telegraf state=restarted enabled=yes
+  become: yes
+  tags: ["telegraf", "telegraf_restart", "telegraf_config"]
