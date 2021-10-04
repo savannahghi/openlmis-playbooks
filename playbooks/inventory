@@ -1,0 +1,6 @@
+[all:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o userknownhostsfile=/dev/null'
+ansible_python_interpreter=/usr/bin/python3
+
+[prod]
+openlmis ansible_host=openlmis-test.europe-west1-d.sghi-307909 command_warnings=False

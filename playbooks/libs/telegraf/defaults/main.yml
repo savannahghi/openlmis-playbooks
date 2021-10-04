@@ -1,0 +1,10 @@
+---
+telegraf_deb_url: https://{{assets_user}}:{{assets_password}}@assets.slade360.co.ke/telegraf_1.3.2-1_amd64.deb
+telegraf_deb_location: /tmp/telegraf.deb
+telegraf_checksum: "sha256:cc847ad3b87b24d54e021f391deacf006a41697f6959430237b16ffd96b9b8b0"
+telegraf_conf_dest: /etc/telegraf/telegraf.conf
+telegraf_influxdb_url: "https://monitoring-api.slade360.co.ke"
+telegraf_influxdb_database: "telegraf"
+telegraf_influxdb_rp: "one_month"
+telegraf_influxdb_username: "telegraf_user"
+telegraf_influxdb_password: "telegraf_password"

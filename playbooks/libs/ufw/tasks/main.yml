@@ -1,0 +1,44 @@
+---
+- name: Install ufw
+  apt: name=ufw state=present
+  become: yes
+  tags: ["common", "ufw"]
+
+- name: deny all by default
+  ufw: state=enabled policy=deny
+  become: yes
+  tags: ["common", "ufw"]
+
+- name: allow openssh
+  ufw: rule=allow port=22 proto=tcp
+  become: yes
+  tags: ["common", "ufw"]
+
+- name: allow HTTPS
+  ufw: rule=allow port=443 proto=tcp
+  become: yes
+  tags: ["common", "ufw"]
+
+- name: allow HTTP (only used for HTTPS auto-configuration)
+  ufw: rule=allow port=80 proto=tcp
+  become: yes
+  tags: ["common", "ufw"]
+
+# this has been secured further with the cloud firewall
+- name: allow port 5432 for PostgreSQL
+  ufw: rule=allow port=5432 proto=tcp direction=in
+  become: yes
+  tags: ["common", "ufw"]
+
+- name: connection rate limiting for SSH, 6 connections per address per 30 seconds
+  ufw:
+    rule: limit
+    port: ssh
+    proto: tcp
+  become: yes
+  tags: ["common", "ufw"]
+
+- name: enable logging
+  ufw: logging=full
+  become: yes
+  tags: ["common", "ufw"]

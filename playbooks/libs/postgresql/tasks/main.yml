@@ -1,0 +1,143 @@
+---
+- name: Make sure we trust the pgdg apt-repo
+  ansible.builtin.shell: curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg >/dev/null
+  args:
+    creates: /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg
+  become: yes
+  tags: ["postgres"]
+
+- name: Set up the pgdb APT repository
+  ansible.builtin.shell: sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+  args:
+    creates: /etc/apt/sources.list.d/pgdg.list
+  become: yes
+  tags: ["postgres"]
+
+- name: Update packages so that we can install pgdg postgres
+  apt: update_cache=yes
+  become: yes
+  tags: ["postgres"]
+
+- name: Install PostgreSQL
+  apt: name={{ item }} state=latest
+  become: yes
+  with_items:
+    - python3-psycopg2
+    - postgresql-{{pg_version}}
+    - postgresql-client-{{pg_version}}
+    - postgresql-contrib-{{pg_version}}
+    - postgresql-{{pg_version}}-postgis-3
+    - libpq-dev
+  tags: ["postgres"]
+
+- name: Install psycopg2 (Python PostgreSQL library)
+  pip:
+    name: psycopg2-binary
+  become: yes
+  tags: ["postgres"]
+
+- name: "Start and enable PostgreSQL"
+  service: "name={{ item }} state=started enabled=yes"
+  with_items:
+    - postgresql
+  tags: ["postgres"]
+
+- name: "Create app database"
+  postgresql_db:
+    state: present
+    name: "{{ db_name }}"
+  become: yes
+  become_user: postgres
+  tags: ["postgres"]
+
+- name: "Create db user"
+  postgresql_user:
+    state: present
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    db: "{{db_name}}"
+    encrypted: yes
+    role_attr_flags: CREATEDB,CREATEROLE,SUPERUSER,REPLICATION
+  become: yes
+  become_user: postgres
+  tags: ["postgres"]
+
+- name: "Grant db user access to app db"
+  postgresql_privs:
+    type: database
+    database: "{{ db_name }}"
+    roles: "{{ db_user }}"
+    grant_option: no
+    privs: all
+  become: yes
+  become_user: postgres
+  tags: ["postgres"]
+
+- name: "Allow md5 connection for the db user (public IP)"
+  postgresql_pg_hba:
+    dest: "/etc/postgresql/{{pg_version}}/main/pg_hba.conf"
+    address: "{{host_public_ip}}"
+    contype: host
+    databases: "{{db_name}}"
+    method: md5
+    users: "{{db_user}}"
+    create: no
+    backup: yes
+  become: yes
+  become_user: postgres
+  notify: reload postgres
+  tags: ["postgres"]
+
+- name: "Allow md5 connection for the db user (private IP)"
+  postgresql_pg_hba:
+    dest: "/etc/postgresql/{{pg_version}}/main/pg_hba.conf"
+    address: "{{host_private_ip}}"
+    contype: host
+    databases: "{{db_name}}"
+    method: md5
+    users: "{{db_user}}"
+    create: no
+    backup: yes
+  become: yes
+  become_user: postgres
+  notify: reload postgres
+  tags: ["postgres"]
+
+- name: "Allow md5 connection for the db user (docker host IP)"
+  postgresql_pg_hba:
+    dest: "/etc/postgresql/{{pg_version}}/main/pg_hba.conf"
+    address: "{{docker_host_ip}}"
+    contype: host
+    databases: "{{db_name}}"
+    method: md5
+    users: "{{db_user}}"
+    create: no
+    backup: yes
+  become: yes
+  become_user: postgres
+  notify: reload postgres
+  tags: ["postgres"]
+
+- name: customize postgresql settings
+  template: 
+    src: postgresql.conf
+    dest: "/etc/postgresql/{{pg_version}}/main/postgresql.conf"
+    backup: "yes"
+    force: "yes"
+    owner: postgres
+  become: yes
+  become_user: postgres
+  notify: reload postgres
+  tags: ["postgres"]
+
+- name: "Enable PostGis extension"
+  command: psql -U postgres {{ db_name }} -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+  become: yes
+  become_user: postgres
+  tags: ["postgres"]
+
+- name: "Enable uuid-ossp extension"
+  command: psql -U postgres {{ db_name }} -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
+  become: yes
+  become_user: postgres
+  tags: ["postgres", "uuid"]

@@ -1,0 +1,51 @@
+---
+
+- name: Add Caddy repository into sources list
+  ansible.builtin.apt_repository:
+    repo: deb [trusted=yes] https://apt.fury.io/caddy/ /
+    state: present
+  become: yes
+  tags: ["caddy"]
+
+- name: Update packages so that we can install Caddy
+  apt: update_cache=yes
+  become: yes
+  tags: ["caddy"]
+
+- name: Install Caddy
+  apt: name={{ item }} state=latest
+  become: yes
+  with_items:
+    - caddy
+  tags: ["caddy"]
+
+- name: Generate Caddyfile to /etc/caddy/Caddyfile
+  template: 
+    src: Caddyfile.j2
+    dest: "/etc/caddy/Caddyfile"
+    backup: "yes"
+    force: "yes"
+    owner: "caddy"
+    group: "caddy"
+  become: yes
+  tags: ["caddy"]
+
+- name: Restart Caddy # TODO Check later
+  systemd:
+    state: stopped
+    daemon_reload: "yes"
+    enabled: "yes"
+    name: caddy
+  become: yes
+  tags: ["caddy"]
+
+- name: Create a folder for Caddy server logs
+  file:
+    path: "/var/log/caddy"
+    state: directory
+    mode: "0777"
+    recurse: yes
+    owner: "{{deploy_user}}"
+    group: "{{deploy_group}}"
+  become: yes
+  tags: ["caddy"]

@@ -1,0 +1,68 @@
+---
+
+- name: Update packages
+  apt: update_cache=yes
+  become: yes
+  tags: ["common"]
+
+- name: Upgrade packages
+  shell: apt dist-upgrade -y
+  become: yes
+  tags: ["common"]
+
+- name: Set localtime to Africa/Nairobi
+  file: state=link src=/usr/share/zoneinfo/Africa/Nairobi dest=/etc/localtime
+  become: yes
+  tags: ["common"]
+
+- name: Install common utilities and libraries
+  apt: name={{ item }} state=latest
+  become: yes
+  with_items:
+    - build-essential
+    - tmux
+    - htop
+    - nano
+    - vim
+    - ntp
+    - logrotate
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - gnupg-agent
+    - gnupg
+    - software-properties-common
+    - python3-pip
+    - python3-setuptools
+    - python-setuptools
+    - python-dev
+    - python3-dev
+    - python-ipaddress
+    - openssh-server
+    - sshpass
+    - libssl-dev
+    - openjdk-8-jdk
+    - ufw
+    - lsb_release
+  tags: ["common"]
+
+- name: Overwrite default tmux config and issue files
+  template: src={{item.src}} dest={{item.dest}}
+  become: yes
+  with_items:
+    - {src: issue, dest: /etc/issue}
+    - {src: tmux.conf, dest: /etc/tmux.conf}
+  tags: ["common"]
+
+- name: Add shared deploy group
+  group: name={{deploy_group}} state=present
+  become: yes
+  tags: ["common"]
+
+- name: Add the ansible and root user to the deploy group
+  user: name={{item}} groups={{deploy_group}} append=yes
+  become: yes
+  with_items:
+      - root
+      - "{{deploy_user}}"
+  tags: ["common"]
